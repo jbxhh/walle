@@ -6,6 +6,7 @@ import com.gemwallet.android.data.service.store.database.entities.DbFakeBalance
 import com.gemwallet.android.data.service.store.database.entities.DbFakeTransaction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.math.BigInteger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,6 +24,11 @@ class FakeDataRepository @Inject constructor(
 ) {
     private val _fakeMode = MutableStateFlow(FakeMode.REAL)
     val fakeMode: StateFlow<FakeMode> = _fakeMode
+
+    private val _dataVersion = MutableStateFlow(0)
+    val dataVersion: StateFlow<Int> = _dataVersion.asStateFlow()
+
+    private fun bump() { _dataVersion.value += 1 }
 
     fun setFakeMode(mode: FakeMode) {
         _fakeMode.value = mode
@@ -51,10 +57,12 @@ class FakeDataRepository @Inject constructor(
                 isOverride = isOverride,
             )
         )
+        bump()
     }
 
     suspend fun clearBalanceAdjustment(walletId: String, assetId: String) {
         fakeBalancesDao.delete(walletId, assetId)
+        bump()
     }
 
     suspend fun getFakeTransactions(walletId: String, assetId: String? = null): List<DbFakeTransaction> {
@@ -89,15 +97,18 @@ class FakeDataRepository @Inject constructor(
         val id = fakeTransactionsDao.insert(tx)
         val current = getBalanceAdjustment(walletId, assetId) ?: BigInteger.ZERO
         setBalanceAdjustment(walletId, assetId, current - amount)
+        bump()
         return id
     }
 
     suspend fun deleteFakeTransaction(id: Long) {
         fakeTransactionsDao.delete(id)
+        bump()
     }
 
     suspend fun clearAll() {
         fakeBalancesDao.clearAll()
         fakeTransactionsDao.clearAll()
+        bump()
     }
 }
