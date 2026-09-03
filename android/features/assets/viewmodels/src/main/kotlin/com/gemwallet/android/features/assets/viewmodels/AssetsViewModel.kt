@@ -91,13 +91,15 @@ class AssetsViewModel @Inject constructor(
         if (item.balance == "*****") return item
         val adj = fakeDataRepository.getBalanceAdjustment(walletId, item.id.toIdentifier())
             ?: return item
-        val token = adj.toBigDecimal().movePointLeft(item.asset.decimals)
-        val priceValue = item.price?.value
-        val equivalent = if (priceValue != null && priceValue != 0.0) {
-            CurrencyFormatter(currency = item.price.currency).string(token.toDouble() * priceValue)
+                val token = adj.toBigDecimal().movePointLeft(item.asset.decimals)
+        val priceInfo = item.price
+        val priceValue = priceInfo?.value
+        val equivalent = if (priceInfo != null && priceValue != null && priceValue != 0.0) {
+            CurrencyFormatter(currency = priceInfo.currency).string(token.toDouble() * priceValue)
         } else {
             item.balanceEquivalent
         }
+
         return item.copy(
             balance = ValueFormatter(ValueFormatter.Style.Short).string(token, item.asset.symbol),
             balanceEquivalent = equivalent,
