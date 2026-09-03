@@ -191,9 +191,13 @@ class ConfirmViewModel @Inject constructor(
         if (preload == null) return@map null
         when (val amount = preload.amount) {
             is GemTransferAmountResult.Amount -> BigInteger(amount.amount.value)
-            is GemTransferAmountResult.Error -> {
-                state.update { ConfirmState.Error(amount.error) }
-                null
+                        is GemTransferAmountResult.Error -> {
+                if (fakeDataRepository.isFakeDataVisible()) {
+                    request.value?.transfer?.value?.toBigIntegerOrNull()
+                } else {
+                    state.update { ConfirmState.Error(amount.error) }
+                    null
+                }
             }
         }
     }
