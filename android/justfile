@@ -1,76 +1,134 @@
-name: Android CI
+list:
+    just --list
 
-on:
-  workflow_dispatch:          # 【新增】允许在 Actions 页面手动运行
-  push:
-    branches: ["main"]
-    paths:
-      - "android/**"
-      - "core/**"
-      - "rust-toolchain.toml"
-      - "localization/**"
-      - ".gitmodules"
-      - ".github/actions/**"
-      - ".github/workflows/android-ci.yml"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "android/**"
-      - "core/**"
-      - "rust-toolchain.toml"
-      - "localization/**"
-      - ".gitmodules"
-      - ".github/actions/**"
-      - ".github/workflows/android-ci.yml"
+bootstrap: install-rust install-toolchains install-ndk
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+install-java:
+    @echo "==> Install Temurin JDK 17"
+    @brew install --cask temurin@17
 
-env:
-  CARGO_TERM_COLOR: always
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
+install-rust:
+    @echo Install Rust
+    @cd ../core && just install-rust
 
-jobs:
-  unit_test:
-    runs-on: ubuntu-latest
-    env:
-      UNIT_TESTS: "true"
-    defaults:
-      run:
-        working-directory: android
+install-toolchains:
+    @echo Install toolchains for uniffi
+    @cd ../core && just gemstone install-android-targets
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          submodules: recursive
+install-typeshare:
+    @echo "==> Install typeshare-cli"
+    @cd ../core && just install-typeshare
 
-      - name: Setup Android CI
-        uses: ./.github/actions/setup-android-ci
+install-ndk:
+    @cd ../core && just gemstone install-ndk
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    find . ../core/gemstone/android -type d \( -name build -o -name .gradle -o -name .kotlin -o -name .cxx -o -name .externalNativeBuild \) -prune -exec rm -rf {} +
+    echo "Android build folders cleaned"
 
-      - name: Install Android toolchains
-        run: |
-          just install-toolchains
-          just install-ndk
+build:
+    @./gradlew assembleGoogleDebug
 
-      - name: Build native libraries
-        run: just generate-stone
+run: build
+    @just _run-adb emulator
 
-      - name: Build app
-        run: just build
+run-device: build
+    @just _run-adb device
 
-      - name: Upload APK          # 【新增】构建后立即上传产物（置于测试之前，测试失败亦不影响取包）
-        uses: actions/upload-artifact@v4
-        with:
-          name: gem-debug-apk
-          path: |
-            android/**/build/outputs/apk/**/*.apk
-            android/**/build/outputs/aab/**/*.aab
+_run-adb TARGET:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PACKAGE="com.gemwallet.android"
+    if [ "{{TARGET}}" = "emulator" ]; then
+        DEVICE=$(adb devices | awk '$2=="device" && $1 ~ /^emulator-/ {print $1; exit}')
+        [ -z "$DEVICE" ] && { echo "No emulator found (try 'just start-emulator')"; exit 1; }
+    else
+        DEVICE=$(adb devices | awk '$2=="device" && $1 !~ /^emulator-/ {print $1; exit}')
+        [ -z "$DEVICE" ] && { echo "No physical device found"; exit 1; }
+    fi
+    APK=$(find app/build/outputs/apk/google/debug -name '*.apk' | head -1)
+    echo "==> Installing on $DEVICE..."
+    adb -s "$DEVICE" install -r "$APK"
+    echo "==> Launching app..."
+    adb -s "$DEVICE" shell am start -W -n "$PACKAGE/$PACKAGE.MainActivity"
+    echo "==> Streaming logs (Ctrl+C to stop)..."
+    PID=""
+    for _ in {1..60}; do
+        PID=$(adb -s "$DEVICE" shell pidof -s "$PACKAGE" | tr -d '\r' || true)
+        [ -n "$PID" ] && break
+        sleep 0.5
+    done
+    if [ -z "$PID" ]; then
+        echo "App process not found after launch; showing recent app errors"
+        adb -s "$DEVICE" logcat -d -t 500 | grep -E "$PACKAGE|AndroidRuntime|FATAL EXCEPTION" || true
+        exit 1
+    fi
+    trap 'echo; echo "==> Log streaming stopped."; exit 0' INT TERM
+    set +e
+    adb -s "$DEVICE" logcat --pid="$PID"
+    STATUS=$?
+    set -e
+    case "$STATUS" in
+        0|130|143)
+            echo
+            echo "==> Log streaming stopped."
+            exit 0
+            ;;
+        *)
+            exit "$STATUS"
+            ;;
+    esac
 
-      - name: Run unit tests
-        run: just test
+build-test:
+    @./gradlew assembleGoogleDebugAndroidTest
+
+test: build-gemstone-host
+    @./gradlew testGoogleDebugUnitTest testDebugUnitTest
+
+build-gemstone-host:
+    @cd ../core && cargo build --package gemstone
+
+test-integration:
+    @./gradlew connectedGoogleDebugAndroidTest connectedDebugAndroidTest
+
+lint:
+    @./gradlew lint -x :gemstone:lintDebug
+
+provision-emulator:
+    @bash ./scripts/android_emulator.sh provision
+
+start-emulator:
+    @bash ./scripts/android_emulator.sh setup
+
+stop-emulator:
+    @bash ./scripts/android_emulator.sh shutdown
+
+mobsfscan:
+    @command -v uv >/dev/null || { \
+        echo "uv is not installed. Install it via 'curl -LsSf https://astral.sh/uv/install.sh | sh'."; \
+        exit 1; }
+    uv tool run mobsfscan -- --type android --config .mobsf --exit-warning
+
+release:
+    @BUILD_MODE=release ./gradlew clean :app:bundleGoogleRelease --no-configuration-cache
+
+release-apk:
+    @BUILD_MODE=release ./gradlew clean assembleUniversalRelease -PuseLegacyPackaging=true --no-configuration-cache
+
+localize:
+    @cd ../core && cargo run --package generate --bin generate localize android ../localization/app ../android/ui/src/main/res
+
+generate: generate-models
+
+generate-models: install-typeshare
+    @echo "==> Generate typeshare for Android"
+    @cd ../core && cargo run --package generate --bin generate android ../android/gemcore/src/main/kotlin/com/wallet/core
+
+generate-stone:
+    @echo "==> Generate Gemstone bindings and native libraries for Android"
+    @./gradlew :gemstone:bindgenKotlin :gemstone:buildCargoNdk --rerun-tasks
+
+bump TARGET="patch":
+	@cd .. && just bump {{TARGET}}
