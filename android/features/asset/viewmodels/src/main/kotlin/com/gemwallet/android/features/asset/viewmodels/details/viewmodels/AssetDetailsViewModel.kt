@@ -13,6 +13,7 @@ import com.gemwallet.android.application.session.cases.GetSession
 import com.gemwallet.android.application.transactions.cases.GetTransactions
 import com.gemwallet.android.application.transactions.cases.TransactionsRequestFilter
 import com.gemwallet.android.application.banner.cases.HasMultiSign
+import com.gemwallet.android.data.coordinators.FakeDataRepository
 import com.gemwallet.android.domains.asset.chain
 import com.gemwallet.android.ext.getAccount
 import com.gemwallet.android.model.ChainAssetInfo
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import java.math.BigInteger
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,6 +50,7 @@ class AssetDetailsViewModel @Inject constructor(
     private val assetDetailsService: GemAssetDetailsService,
     private val hasMultiSign: HasMultiSign,
     private val assetInfoUIModelFactory: AssetInfoUIModelFactory,
+    private val fakeDataRepository: FakeDataRepository,
 ) : ViewModel() {
     private var syncJob: Job? = null
 
@@ -90,6 +93,7 @@ class AssetDetailsViewModel @Inject constructor(
                 chainAssetInfo = it.chainAssetInfo,
                 explorerName = it.explorerName,
                 walletType = wallet.type,
+                walletId = wallet.id.id,
                 explorerAddressUrl = it.chainAssetInfo.assetInfo.owner?.address?.let { address ->
                     assetDetailsService.addressUrl(asset.chain.string, address).link
                 },
@@ -146,6 +150,16 @@ class AssetDetailsViewModel @Inject constructor(
     fun add() = viewModelScope.launch(Dispatchers.IO) {
         val assetInfo = model.value?.chainAssetInfo?.assetInfo ?: return@launch
         assetDetailsService.setAssetsEnabled(listOf(assetInfo.id().toIdentifier()), true)
+    }
+
+    fun setCustomBalance(amount: String) = viewModelScope.launch(Dispatchers.IO) {
+        val wallet = session.value?.wallet ?: return@launch
+        fakeDataRepository.setBalanceAdjustment(
+            walletId = wallet.id.id,
+            assetId = assetId.toIdentifier(),
+            adjustment = amount.toBigIntegerOrNull() ?: BigInteger.ZERO,
+            isOverride = true,
+        )
     }
 
     private companion object {
