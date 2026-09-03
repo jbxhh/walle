@@ -85,7 +85,7 @@ class AssetDetailsViewModel @Inject constructor(
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val uiModel = combine(model, session) { current, session ->
+        val uiModel = combine(model, session, fakeDataRepository.dataVersion) { current, session, _ ->
         val wallet = session?.wallet ?: return@combine null
         current?.let {
             val asset = it.chainAssetInfo.assetInfo.asset
