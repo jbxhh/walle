@@ -58,6 +58,9 @@ jobs:
           just install-toolchains
           just install-ndk
 
+      - name: Build native libraries
+        run: just generate-stone
+
       - name: Build app
         run: just build
 
