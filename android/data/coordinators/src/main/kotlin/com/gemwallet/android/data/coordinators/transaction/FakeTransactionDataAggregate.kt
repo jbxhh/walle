@@ -16,7 +16,7 @@ import java.math.BigInteger
 
 class FakeTransactionDataAggregate(
     private val fake: DbFakeTransaction,
-    private val asset: Asset,
+    private val _asset: Asset,
 ) : TransactionDataAggregate {
 
     private val amount = fake.amount.toBigIntegerOrNull() ?: BigInteger.ZERO
@@ -24,13 +24,13 @@ class FakeTransactionDataAggregate(
 
     override val id: TransactionId = TransactionId(fake.id.toString())
 
-    override val asset: Asset = asset
+    override val asset: Asset = _asset
 
     override val address: String = fake.toAddress
 
     override val addressName: String? = null
 
-    override val value: String = formatter.string(amount, asset)
+    override val value: String = formatter.string(amount, _asset)
 
     override val equivalentValue: String? = null
 
