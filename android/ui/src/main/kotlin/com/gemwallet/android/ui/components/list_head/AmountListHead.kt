@@ -230,10 +230,6 @@ fun AssetHeadActions(
     onSwap: (() -> Unit)?,
 ) {
     var actionFontSize by remember { mutableStateOf(16.sp) }
-    if (walletType == WalletType.View) {
-        AssetWatchOnly()
-        return
-    }
     val actions = listOf(
         AssetHeadActionItem(R.string.wallet_send, AppIcons.Send, transferEnabled && operationsEnabled, onTransfer),
         AssetHeadActionItem(R.string.wallet_receive, AppIcons.Receive, operationsEnabled, onReceive),
