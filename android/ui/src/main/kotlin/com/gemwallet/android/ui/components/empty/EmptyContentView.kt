@@ -28,16 +28,8 @@ private fun EmptyContentType.title(): String = when (this) {
     is EmptyContentType.Nft -> stringResource(R.string.nft_state_empty_title)
     is EmptyContentType.PriceAlerts -> stringResource(R.string.price_alerts_state_empty_title)
     is EmptyContentType.Contacts -> stringResource(R.string.contacts_state_empty_title)
-    is EmptyContentType.Asset -> if (isViewOnly) {
-        stringResource(R.string.wallet_watch_empty_state_title)
-    } else {
-        stringResource(R.string.asset_state_empty_title)
-    }
-    is EmptyContentType.Activity -> if (isViewOnly) {
-        stringResource(R.string.wallet_watch_empty_state_title)
-    } else {
-        stringResource(R.string.activity_state_empty_title)
-    }
+    is EmptyContentType.Asset -> stringResource(R.string.asset_state_empty_title)
+    is EmptyContentType.Activity -> stringResource(R.string.activity_state_empty_title)
     is EmptyContentType.Stake -> stringResource(R.string.stake_state_empty_title)
     is EmptyContentType.WalletConnect -> stringResource(R.string.wallet_connect_no_active_connections)
     is EmptyContentType.Recents -> stringResource(R.string.recent_activity_state_empty_title)
@@ -54,8 +46,8 @@ private fun EmptyContentType.description(): String? = when (this) {
     is EmptyContentType.Nft -> if (onReceive != null) stringResource(R.string.nft_state_empty_description) else null
     is EmptyContentType.PriceAlerts -> stringResource(R.string.price_alerts_state_empty_description)
     is EmptyContentType.Contacts -> stringResource(R.string.contacts_state_empty_description)
-    is EmptyContentType.Asset -> if (isViewOnly) null else stringResource(R.string.asset_state_empty_description, symbol)
-    is EmptyContentType.Activity -> if (isViewOnly) null else stringResource(R.string.activity_state_empty_description)
+    is EmptyContentType.Asset -> stringResource(R.string.asset_state_empty_description, symbol)
+    is EmptyContentType.Activity -> stringResource(R.string.activity_state_empty_description)
     is EmptyContentType.Stake -> stringResource(R.string.stake_state_empty_description, symbol)
     is EmptyContentType.WalletConnect -> stringResource(R.string.wallet_connect_state_empty_description)
     is EmptyContentType.Recents -> stringResource(R.string.recent_activity_state_empty_description)
@@ -99,11 +91,11 @@ private fun EmptyContentType.buttons(): List<EmptyAction> = when (this) {
     is EmptyContentType.Nft -> listOfNotNull(
         onReceive?.let { EmptyAction(stringResource(R.string.wallet_receive), it, EmptyActionStyle.Secondary) },
     )
-    is EmptyContentType.Asset -> if (isViewOnly) emptyList() else listOfNotNull(
+    is EmptyContentType.Asset -> listOfNotNull(
         onBuy?.let { EmptyAction(stringResource(R.string.wallet_buy), it) },
         onSwap?.let { EmptyAction(stringResource(R.string.wallet_swap), it, EmptyActionStyle.Secondary) },
     )
-    is EmptyContentType.Activity -> if (isViewOnly) emptyList() else listOfNotNull(
+    is EmptyContentType.Activity -> listOfNotNull(
         onBuy?.let { EmptyAction(stringResource(R.string.wallet_buy), it) },
         onReceive?.let { EmptyAction(stringResource(R.string.wallet_receive), it, EmptyActionStyle.Secondary) },
     )
