@@ -44,20 +44,17 @@ class AssetInfoUIModelFactory @Inject constructor(
         val currencyFormatter = CurrencyFormatter(currency = currency)
         val valueFormatter = ValueFormatter(style = ValueFormatter.Style.Auto)
         val baseBalance = balances.balance.getTotalAmount()
-        val adjustment = if (fakeDataRepository.isFakeDataVisible()) {
-            fakeDataRepository.getBalanceAdjustment(walletId, asset.id.toIdentifier()) ?: BigInteger.ZERO
+        val customBalance = if (fakeDataRepository.isFakeDataVisible()) {
+            fakeDataRepository.getBalanceAdjustment(walletId, asset.id.toIdentifier())
         } else {
-            BigInteger.ZERO
+            null
         }
-        val totalBalance = baseBalance + adjustment
-        val fiatTotal = if (balances.fiatTotalAmount == 0.0 && adjustment == BigInteger.ZERO) {
-            ""
-        } else {
-            currencyFormatter.string(balances.fiatTotalAmount)
-        }
+        val totalBalance = customBalance ?: baseBalance
+        val tokenAmount = totalBalance.toBigDecimal().movePointLeft(balances.asset.decimals).toDouble()
+        val fiatText = if (tokenAmount * price == 0.0) "" else currencyFormatter.string(tokenAmount * price)
         val swapPair = swapService.pairForAsset(
             assetId = asset.id.toIdentifier(),
-            hasBalance = (balances.balance.available.toBigIntegerOrNull() ?: BigInteger.ZERO) > BigInteger.ZERO,
+            hasBalance = totalBalance > BigInteger.ZERO,
         )
         return AssetInfoUIModel(
             assetInfo = assetInfo,
@@ -77,11 +74,11 @@ class AssetInfoUIModelFactory @Inject constructor(
             accountInfoUIModel = AssetInfoUIModel.AccountInfoUIModel(
                 walletType = walletType,
                 totalBalance = valueFormatter.string(totalBalance, balances.asset),
-                totalFiat = fiatTotal,
+                totalFiat = fiatText,
                 owner = assetInfo.owner?.address ?: "",
                 balanceMetadata = feeAssetInfo.balance.metadata,
                 hasBalanceDetails = StakeChain.isStaked(asset.id.chain) || balances.balanceAmount.reserved != 0.0,
-                available = formatAvailable(assetInfo, valueFormatter, adjustment),
+                available = if (customBalance != null) "" else formatAvailable(assetInfo, valueFormatter),
                 stake = formatStake(assetInfo, valueFormatter),
                 reserved = formatReserved(assetInfo, valueFormatter),
             ),
@@ -89,12 +86,10 @@ class AssetInfoUIModelFactory @Inject constructor(
     }
     private fun assetName(asset: Asset): String =
         if (asset.type == AssetType.NATIVE) asset.id.chain.asset().name else asset.name
-    private fun formatAvailable(assetInfo: AssetInfo, formatter: ValueFormatter, adjustment: BigInteger): String {
+    private fun formatAvailable(assetInfo: AssetInfo, formatter: ValueFormatter): String {
         val balances = assetInfo.balance
-        val available = balances.balance.available.toBigInteger() + adjustment
-        val total = balances.balance.getTotalAmount() + adjustment
-        return if (available != total) {
-            formatter.string(available, balances.asset)
+        return if (balances.balanceAmount.available != balances.totalAmount) {
+            formatter.string(balances.balance.available.toBigInteger(), balances.asset)
         } else {
             ""
         }
