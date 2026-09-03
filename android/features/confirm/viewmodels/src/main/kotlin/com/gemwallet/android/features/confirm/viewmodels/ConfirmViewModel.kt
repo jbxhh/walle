@@ -55,6 +55,7 @@ import com.gemwallet.android.features.confirm.models.PerpetualModifyAutocloseFac
 import com.gemwallet.android.domains.confirm.ConfirmState
 import com.gemwallet.android.domains.confirm.FeeDetailsModel
 import com.gemwallet.android.domains.confirm.FeeUIModel
+import com.gemwallet.android.data.coordinators.FakeDataRepository
 import com.wallet.core.primitives.AddressName
 import com.wallet.core.primitives.AssetId
 import com.wallet.core.primitives.Currency
@@ -89,6 +90,7 @@ class ConfirmViewModel @Inject constructor(
     private val confirmService: GemConfirmTransferService,
     private val savedStateHandle: SavedStateHandle,
     private val transferService: GemTransferService,
+    private val fakeDataRepository: FakeDataRepository,
 ) : ViewModel() {
 
     private val restart = MutableStateFlow(false)
@@ -322,7 +324,26 @@ class ConfirmViewModel @Inject constructor(
                 is GemTransferAmountResult.Amount -> BigInteger(calculated.amount.value)
                 is GemTransferAmountResult.Error -> throw calculated.error
             }
-            val transactionHash = execute(signerParams.copy(finalAmount = amount), session.wallet)
+            // 假数据模式：写假记录，不真签名
+            val transactionHash = if (fakeDataRepository.isFakeDataVisible()) {
+                val req = request.value
+                val assetId = req?.transfer?.inputType?.asset?.id?.toString() ?: ""
+                val toAddress = req?.transfer?.recipient?.address ?: ""
+                val chain = req?.transfer?.inputType?.asset?.id?.chain
+                val fromAddress = if (chain != null) {
+                    session.wallet.getAccount(chain)?.address ?: ""
+                } else ""
+                fakeDataRepository.addFakeTransfer(
+                    walletId = session.wallet.id.id,
+                    assetId = assetId,
+                    fromAddress = fromAddress,
+                    toAddress = toAddress,
+                    amount = amount,
+                )
+                "fake_${System.currentTimeMillis()}"
+            } else {
+                execute(signerParams.copy(finalAmount = amount), session.wallet)
+            }
             state.update { ConfirmState.Result(transactionHash = transactionHash) }
             viewModelScope.launch(Dispatchers.Main) {
                 finishAction(transactionHash)
@@ -414,4 +435,3 @@ class ConfirmViewModel @Inject constructor(
         return ConfirmDetailElement.SwapDetails(model)
     }
 }
-
