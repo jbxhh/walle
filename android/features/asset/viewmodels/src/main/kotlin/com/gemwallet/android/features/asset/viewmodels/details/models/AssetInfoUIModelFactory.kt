@@ -7,8 +7,6 @@ import com.gemwallet.android.domains.percentage.PercentageFormatterStyle
 import com.gemwallet.android.domains.percentage.formatAsPercentage
 import com.gemwallet.android.domains.price.toValueDirection
 import com.gemwallet.android.ext.asset
-import com.gemwallet.android.ext.toIdentifier
-import com.gemwallet.android.ext.toPrimitives
 import com.gemwallet.android.model.AssetInfo
 import com.gemwallet.android.model.ChainAssetInfo
 import com.gemwallet.android.model.CurrencyFormatter
@@ -18,14 +16,16 @@ import com.gemwallet.android.model.toGem
 import com.wallet.core.primitives.Asset
 import com.wallet.core.primitives.AssetType
 import com.wallet.core.primitives.Currency
-import com.wallet.core.primitives.VerificationStatus
+import com.wallet.core.primitives.StakeChain
 import com.wallet.core.primitives.WalletType
-import uniffi.gemstone.GemAssetNetworkDestination
-import uniffi.gemstone.GemBalanceRow
-import java.math.BigInteger
+import com.gemwallet.android.ext.toAssetId
+import com.gemwallet.android.ext.toIdentifier
+import uniffi.gemstone.GemSwapServiceInterface
 import javax.inject.Inject
+import java.math.BigInteger
 
 class AssetInfoUIModelFactory @Inject constructor(
+    private val swapService: GemSwapServiceInterface,
     private val fakeDataRepository: FakeDataRepository,
 ) {
     suspend fun create(
@@ -45,7 +45,6 @@ class AssetInfoUIModelFactory @Inject constructor(
         val currencyFormatter = CurrencyFormatter(currency = currency)
         val valueFormatter = ValueFormatter(style = ValueFormatter.Style.Auto)
 
-        // 叠加自定义余额
         val baseBalance = balances.balance.getTotalAmount()
         val adjustment = if (fakeDataRepository.isFakeDataVisible()) {
             fakeDataRepository.getBalanceAdjustment(walletId, asset.id.toIdentifier()) ?: BigInteger.ZERO
@@ -53,12 +52,16 @@ class AssetInfoUIModelFactory @Inject constructor(
             BigInteger.ZERO
         }
         val totalBalance = baseBalance + adjustment
+
         val fiatTotal = if (balances.fiatTotalAmount == 0.0 && adjustment == BigInteger.ZERO) {
             ""
         } else {
             currencyFormatter.string(balances.fiatTotalAmount)
         }
-
+        val swapPair = swapService.pairForAsset(
+            assetId = asset.id.toIdentifier(),
+            hasBalance = (balances.balance.available.toBigIntegerOrNull() ?: BigInteger.ZERO) > BigInteger.ZERO,
+        )
         return AssetInfoUIModel(
             assetInfo = assetInfo,
             name = assetName(asset),
@@ -69,21 +72,21 @@ class AssetInfoUIModelFactory @Inject constructor(
             tokenType = asset.type,
             isBuyEnabled = assetInfo.metadata.isBuyEnabled,
             isSwapEnabled = assetInfo.metadata.isSwapEnabled,
-            swapPayAssetId = null,
-            swapReceiveAssetId = null,
+            swapPayAssetId = swapPair.payAssetId.toAssetId(),
+            swapReceiveAssetId = swapPair.receiveAssetId?.toAssetId(),
             explorerName = explorerName,
             explorerAddressUrl = explorerAddressUrl,
             explorerTokenUrl = explorerTokenUrl,
-            verificationStatus = null,
-            networkDestination = null,
-            shareUrl = "",
             accountInfoUIModel = AssetInfoUIModel.AccountInfoUIModel(
                 walletType = walletType,
                 totalBalance = valueFormatter.string(totalBalance, balances.asset),
                 totalFiat = fiatTotal,
                 owner = assetInfo.owner?.address ?: "",
-                balances = balanceRows(assetInfo, valueFormatter),
                 balanceMetadata = feeAssetInfo.balance.metadata,
+                hasBalanceDetails = StakeChain.isStaked(asset.id.chain) || balances.balanceAmount.reserved != 0.0,
+                available = formatAvailable(assetInfo, valueFormatter),
+                stake = formatStake(assetInfo, valueFormatter),
+                reserved = formatReserved(assetInfo, valueFormatter),
             ),
         )
     }
@@ -91,24 +94,36 @@ class AssetInfoUIModelFactory @Inject constructor(
     private fun assetName(asset: Asset): String =
         if (asset.type == AssetType.NATIVE) asset.id.chain.asset().name else asset.name
 
-    private fun balanceRows(assetInfo: AssetInfo, formatter: ValueFormatter): List<AssetInfoUIModel.BalanceUIModel> {
-        val asset = assetInfo.asset
-        val text = { value: BigInteger -> formatter.string(value, asset) }
-        return assetInfo.balance.toGem().detailRows(asset.chain.string, assetInfo.metadata.isStakeEnabled).mapNotNull { row ->
-            when (row) {
-                is GemBalanceRow.Available -> AssetInfoUIModel.BalanceUIModel(AssetInfoUIModel.BalanceViewType.Available, text(row.value))
-                is GemBalanceRow.Staked -> AssetInfoUIModel.BalanceUIModel(
-                    AssetInfoUIModel.BalanceViewType.Stake,
-                    if (row.value == BigInteger.ZERO) {
-                        "APR ${(assetInfo.metadata.stakingApr ?: 0.0).formatAsPercentage(style = PercentageFormatterStyle.PercentSignLess)}"
-                    } else {
-                        text(row.value)
-                    },
-                )
-                is GemBalanceRow.PendingUnconfirmed -> AssetInfoUIModel.BalanceUIModel(AssetInfoUIModel.BalanceViewType.PendingUnconfirmed, text(row.value))
-                is GemBalanceRow.Reserved -> AssetInfoUIModel.BalanceUIModel(AssetInfoUIModel.BalanceViewType.Reserved, text(row.value), row.url)
-                is GemBalanceRow.Earn -> null
-            }
+    private fun formatAvailable(assetInfo: AssetInfo, formatter: ValueFormatter): String {
+        val balances = assetInfo.balance
+        return if (balances.balanceAmount.available != balances.totalAmount) {
+            formatter.string(balances.balance.available.toBigInteger(), balances.asset)
+        } else {
+            ""
+        }
+    }
+
+    private fun formatStake(assetInfo: AssetInfo, formatter: ValueFormatter): String {
+        val balances = assetInfo.balance
+        val stakeBalance = balances.toGem()
+        val chain = assetInfo.asset.chain.string
+        if (!stakeBalance.showsStakeBalance(chain, assetInfo.metadata.isStakeEnabled)) {
+            return ""
+        }
+        val staked = stakeBalance.stakedValue(chain).toBigInteger()
+        return if (staked == BigInteger.ZERO) {
+            "APR ${(assetInfo.metadata.stakingApr ?: 0.0).formatAsPercentage(style = PercentageFormatterStyle.PercentSignLess)}"
+        } else {
+            formatter.string(staked, balances.asset)
+        }
+    }
+
+    private fun formatReserved(assetInfo: AssetInfo, formatter: ValueFormatter): String {
+        val balances = assetInfo.balance
+        return if (balances.balanceAmount.reserved != 0.0) {
+            formatter.string(balances.balance.reserved.toBigInteger(), balances.asset)
+        } else {
+            ""
         }
     }
 }
