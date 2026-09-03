@@ -39,6 +39,7 @@ fun AssetDetailsScreen(
                     AssetDetailsAction.Refresh -> viewModel.refresh()
                     AssetDetailsAction.Pin -> viewModel.pin()
                     AssetDetailsAction.Add -> viewModel.add()
+                    is AssetDetailsAction.SetCustomBalance -> viewModel.setCustomBalance(action.amount)
                     is AssetDetailsAction.TogglePriceAlert -> priceAlertsViewModel.toggle(action.assetId)
                     is AssetDetailsAction.Navigation -> onAction(action)
                 }
