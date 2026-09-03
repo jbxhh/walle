@@ -6,7 +6,11 @@ import com.gemwallet.android.application.transactions.cases.GetTransactions
 import com.gemwallet.android.application.transactions.cases.SyncTransactions
 import com.gemwallet.android.application.transactions.cases.TransactionsRequestFilter
 import com.gemwallet.android.application.session.cases.GetSession
+import com.gemwallet.android.data.coordinators.FakeDataRepository
+import com.gemwallet.android.data.coordinators.transaction.FakeTransactionDataAggregate
+import com.gemwallet.android.domains.transaction.aggregates.TransactionDataAggregate
 import com.gemwallet.android.ui.models.TransactionTypeFilter
+import com.wallet.core.primitives.AssetId
 import com.wallet.core.primitives.Chain
 import uniffi.gemstone.GemAssetConfigService
 import com.wallet.core.primitives.WalletId
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -36,6 +41,7 @@ class TransactionsViewModel @Inject constructor(
     getTransactions: GetTransactions,
     private val syncTransactions: SyncTransactions,
     private val assetConfig: GemAssetConfigService,
+    private val fakeDataRepository: FakeDataRepository,
 ) : ViewModel() {
 
     private val _isRefreshing = MutableStateFlow(false)
@@ -54,7 +60,7 @@ class TransactionsViewModel @Inject constructor(
 
     private var syncedWalletId: WalletId? = null
 
-    val transactions = combine(
+    private val realTransactions = combine(
         chainsFilter,
         typeFilter,
     ) { chains, types ->
@@ -71,6 +77,21 @@ class TransactionsViewModel @Inject constructor(
         started = SharingStarted.Eagerly,
         initialValue = getTransactions.transactions().value,
     )
+
+    val transactions = combine(realTransactions, session, fakeDataRepository.fakeMode) { real, sess, mode ->
+        if (!fakeDataRepository.isFakeDataVisible() || sess == null) {
+            return@combine real
+        }
+        val walletId = sess.wallet.id.id
+        val fakeTxs = fakeDataRepository.getFakeTransactions(walletId)
+        val fakeAggregates = fakeTxs.mapNotNull { fake ->
+            val assetId = runCatching { AssetId(fake.assetId) }.getOrNull() ?: return@mapNotNull null
+            val asset = assetConfig.asset(assetId) ?: return@mapNotNull null
+            FakeTransactionDataAggregate(fake, asset)
+        }
+        (real + fakeAggregates).sortedByDescending { it.createdAt }
+    }
+    .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
         viewModelScope.launch {
