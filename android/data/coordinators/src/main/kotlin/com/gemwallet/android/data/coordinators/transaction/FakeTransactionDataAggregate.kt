@@ -4,6 +4,7 @@ import com.gemwallet.android.data.service.store.database.entities.DbFakeTransact
 import com.gemwallet.android.domains.transaction.aggregates.TransactionDataAggregate
 import com.gemwallet.android.model.ValueFormatter
 import com.wallet.core.primitives.Asset
+import com.wallet.core.primitives.AssetId
 import com.wallet.core.primitives.TransactionDirection
 import com.wallet.core.primitives.TransactionId
 import com.wallet.core.primitives.TransactionState
@@ -20,8 +21,9 @@ class FakeTransactionDataAggregate(
 
     private val amount = fake.amount.toBigIntegerOrNull() ?: BigInteger.ZERO
     private val formatter = ValueFormatter(style = ValueFormatter.Style.Short)
+    private val assetId = AssetId(fake.assetId)
 
-    override val id: TransactionId = TransactionId(fake.id.toString())
+    override val id: TransactionId = TransactionId(assetId.chain, fake.id.toString())
     override val asset: Asset = _asset
     override val address: String = fake.toAddress
     override val addressName: String? = null
