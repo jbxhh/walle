@@ -112,6 +112,7 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             isDebuggable = true
+            applicationIdSuffix = ".debug"
 
             if (System.getenv("UNIT_TESTS") == "true") {
                 ndk {
