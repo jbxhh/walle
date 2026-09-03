@@ -195,7 +195,7 @@ internal fun AssetDetailsScene(
                 OutlinedTextField(
                     value = customBalanceInput,
                     onValueChange = { customBalanceInput = it },
-                    label = { Text("余额数量（最小单位）") },
+                                        label = { Text("余额数量（直接填币的个数，如 100）") },
                     singleLine = true,
                 )
             },
