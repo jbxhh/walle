@@ -39,7 +39,6 @@ import com.gemwallet.android.features.asset.presents.details.components.network
 import com.gemwallet.android.features.asset.presents.details.components.price
 import com.gemwallet.android.features.asset.presents.details.components.status
 import com.gemwallet.android.features.asset.viewmodels.details.models.AssetInfoUIModel
-import com.wallet.core.primitives.WalletType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +62,7 @@ internal fun AssetDetailsScene(
         uiState.asset.name,
     )
     val addToastMessage = stringResource(R.string.asset_added_to_wallet)
-    val swapAction: (() -> Unit)? = if (uiState.isSwapEnabled && uiState.accountInfoUIModel.walletType != WalletType.View) {
+    val swapAction: (() -> Unit)? = if (uiState.isSwapEnabled) {
         {
             onAction(
                 AssetDetailsAction.Swap(
@@ -110,7 +109,7 @@ internal fun AssetDetailsScene(
                 item {
                     AssetHeadItem(
                         uiState = uiState,
-                        isOperationEnabled = isOperationEnabled,
+                        isOperationEnabled = true,
                         onTransfer = { onAction(AssetDetailsAction.Transfer(it)) },
                         onReceive = { onAction(AssetDetailsAction.Receive(it)) },
                         onBuy = { onAction(AssetDetailsAction.Buy(it)) },
@@ -142,7 +141,7 @@ internal fun AssetDetailsScene(
                     },
                 )
                 status(uiState.asset, uiState.assetInfo.metadata.rankScore)
-                price(uiState, priceAlertsCount, onChart = { onAction(AssetDetailsAction.OpenChart(it)) }, onPriceAlerts = { onAction(AssetDetailsAction.OpenPriceAlerts(it)) })
+                price(uiState, priceAlertsCount, onChart = { onAction(AssetDetailsAction.OpenChart(it)) }, onPriceAlerts = { onAction(AssetDetailsAction.OpenPriceAlerts) })
                 network(uiState, onAction)
                 balancesHeader(uiState.accountInfoUIModel)
                 itemsPositioned(uiState.accountInfoUIModel.balances) { position, item ->
@@ -170,7 +169,7 @@ internal fun AssetDetailsScene(
                     EmptyTransactionsItem(
                         size = transactions.size,
                         symbol = uiState.asset.symbol,
-                        isViewOnly = uiState.accountInfoUIModel.walletType == WalletType.View,
+                        isViewOnly = false,
                         onBuy = if (uiState.isBuyEnabled) { { onAction(AssetDetailsAction.Buy(uiState.asset.id)) } } else null,
                         onSwap = if (!uiState.isBuyEnabled) swapAction else null,
                     )
