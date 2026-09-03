@@ -7,6 +7,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gemwallet.android.data.coordinators.FakeDataRepository
 import com.gemwallet.android.ext.toCurrency
 import com.gemwallet.android.features.transfer_amount.models.AmountError
 import com.gemwallet.android.features.transfer_amount.viewmodels.providers.AmountDataProvider
@@ -48,7 +49,8 @@ import uniffi.gemstone.GemAssetBalance
 class AmountViewModel @Inject constructor(
     service: GemAmountServiceInterface,
     factory: AmountProviderFactory,
-    savedStateHandle: SavedStateHandle,
+        savedStateHandle: SavedStateHandle,
+    private val fakeDataRepository: FakeDataRepository,
 ) : ViewModel() {
 
     private val valueFormatter = ValueFormatter(style = ValueFormatter.Style.Auto)
@@ -147,11 +149,13 @@ class AmountViewModel @Inject constructor(
                 AmountValidation.parseAmount(asset, amount)
                 val price = current.price?.price?.price ?: 0.0
                 val crypto = amountInputType.value.getAmount(amount, asset.decimals, price)
-                val amountType = provider.amountType.value ?: return@launch
-                val balance = provider.balance.value ?: return@launch
-                AmountValidation.validate(amountType, asset, crypto, balance)
+                                val amountType = provider.amountType.value ?: return@launch
+                if (!fakeDataRepository.isFakeDataVisible()) {
+                    val balance = provider.balance.value ?: return@launch
+                    AmountValidation.validate(amountType, asset, crypto, balance)
+                }
                 amountError.value = AmountError.None
-                val isMax = crypto.atomicValue == provider.maxValue()
+                val isMax = !fakeDataRepository.isFakeDataVisible() && crypto.atomicValue == provider.maxValue()
                 onConfirm(provider.buildConfirmInput(crypto, isMax))
             } catch (err: AmountError) {
                 amountError.value = err
@@ -170,9 +174,11 @@ class AmountViewModel @Inject constructor(
             AmountValidation.parseAmount(asset, inputs.amount)
             val price = current.price?.price?.price ?: 0.0
             val crypto = inputs.inputType.getAmount(inputs.amount, asset.decimals, price)
-            val amountType = inputs.amountType ?: return AmountError.None
-            val balance = inputs.balance ?: return AmountError.None
-            AmountValidation.validate(amountType, asset, crypto, balance)
+                        val amountType = inputs.amountType ?: return AmountError.None
+            if (!fakeDataRepository.isFakeDataVisible()) {
+                val balance = inputs.balance ?: return AmountError.None
+                AmountValidation.validate(amountType, asset, crypto, balance)
+            }
             AmountError.None
         } catch (err: Throwable) {
             err as? AmountError ?: AmountError.None
