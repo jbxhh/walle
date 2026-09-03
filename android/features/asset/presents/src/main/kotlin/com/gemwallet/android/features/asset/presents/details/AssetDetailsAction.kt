@@ -1,29 +1,120 @@
-package com.gemwallet.android.features.asset.presents.details
+package com.gemwallet.android.features.asset.presents.details.components
 
-import uniffi.gemstone.GemConfirmInput
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
+import com.gemwallet.android.ui.R
+import com.gemwallet.android.ui.components.screen.showSnackbar
+import com.gemwallet.android.ui.icons.AppIcons
+import com.gemwallet.android.ui.open
+import com.gemwallet.android.ui.shareText
+import com.gemwallet.android.features.asset.viewmodels.details.models.AssetInfoUIModel
+import com.gemwallet.android.ext.toIdentifier
 import com.wallet.core.primitives.AssetId
-import com.wallet.core.primitives.Chain
-import com.wallet.core.primitives.TransactionId
+import kotlinx.coroutines.launch
+import com.gemwallet.android.ui.LocalDeeplinkService
+import uniffi.gemstone.Deeplink
 
-sealed interface AssetDetailsAction {
-    sealed interface Navigation : AssetDetailsAction
+@Composable
+fun RowScope.AssetDetailsMenu(
+    uiState: AssetInfoUIModel,
+    priceAlertEnabled: Boolean,
+    snackBar: SnackbarHostState,
+    requestNotificationPermission: (() -> Unit) -> Unit,
+    onPriceAlert: (AssetId) -> Unit,
+    onSetCustomBalance: () -> Unit,
+) {
+    val context = LocalContext.current
+    val deeplinkService = LocalDeeplinkService.current
+    val scope = rememberCoroutineScope()
 
-    data object Refresh : AssetDetailsAction
-    data object Pin : AssetDetailsAction
-    data object Add : AssetDetailsAction
-    data class TogglePriceAlert(val assetId: AssetId) : AssetDetailsAction
+    val priceAlertToastRes = if (priceAlertEnabled) R.string.price_alerts_disabled_for else R.string.price_alerts_enabled_for
+    val priceAlertToastMessage = stringResource(priceAlertToastRes, uiState.asset.name)
+    var menuExpanded by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
+    val shareTitle = stringResource(id = R.string.common_share)
 
-    data object Close : Navigation
-    data class Transfer(val assetId: AssetId) : Navigation
-    data class Receive(val assetId: AssetId) : Navigation
-    data class Buy(val assetId: AssetId) : Navigation
-    data class Swap(val fromAssetId: AssetId, val toAssetId: AssetId?) : Navigation
-    data class OpenTransaction(val transactionId: TransactionId) : Navigation
-    data class OpenChart(val assetId: AssetId) : Navigation
-    data class OpenNetwork(val assetId: AssetId) : Navigation
-    data class OpenNetworkAssets(val chain: Chain) : Navigation
-    data class Stake(val assetId: AssetId) : Navigation
-    data object OpenPerpetuals : Navigation
-    data class OpenPriceAlerts(val assetId: AssetId) : Navigation
-    data class Confirm(val params: GemConfirmInput) : Navigation
+    val onShare = fun () {
+        val subject = "${uiState.assetInfo.owner?.chain}\n${uiState.assetInfo.asset.symbol}"
+        val assetId = uiState.asset.id
+        val shareUrl = deeplinkService.buildUrl(Deeplink.Asset(assetId = assetId.toIdentifier()))
+
+        context.shareText(subject = subject, text = shareUrl, chooserTitle = shareTitle)
+    }
+
+    val enablePriceAlert = fun () {
+        onPriceAlert(uiState.asset.id)
+        scope.launch { snackBar.showSnackbar(priceAlertToastMessage, R.drawable.ic_notifications) }
+    }
+
+    IconButton(
+        onClick = {
+            if (priceAlertEnabled) {
+                enablePriceAlert()
+            } else {
+                requestNotificationPermission(enablePriceAlert)
+            }
+        }
+    ) {
+        if (priceAlertEnabled) {
+            Icon(AppIcons.Notifications, "")
+        } else {
+            Icon(AppIcons.NotificationsOutlined, "")
+        }
+    }
+    IconButton(onClick = { menuExpanded = !menuExpanded }) {
+        Icon(
+            imageVector = AppIcons.MoreVert,
+            contentDescription = "More",
+        )
+    }
+    DropdownMenu(
+        expanded = menuExpanded,
+        onDismissRequest = { menuExpanded = false },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) {
+        uiState.explorerAddressUrl?.let {
+            DropdownMenuItem(
+                text = {
+                    Text(stringResource(R.string.asset_view_address_on, uiState.explorerName))
+                },
+                onClick = { uriHandler.open(context, it) },
+            )
+        }
+        uiState.explorerTokenUrl?.let {
+            DropdownMenuItem(
+                text = {
+                    Text(stringResource(R.string.asset_view_token_on, uiState.explorerName))
+                },
+                onClick = { uriHandler.open(context, it) },
+            )
+        }
+        DropdownMenuItem(
+            text = { Text("设置自定义余额") },
+            onClick = {
+                menuExpanded = false
+                onSetCustomBalance()
+            },
+        )
+        DropdownMenuItem(
+            text = {
+                Text(stringResource(R.string.common_share))
+            },
+            onClick = onShare,
+        )
+    }
 }
