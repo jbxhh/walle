@@ -34,9 +34,7 @@ env:
 
 jobs:
   unit_test:
-    runs-on: ubuntu-latest
-    env:
-      UNIT_TESTS: "true"
+    runs-on: ubuntu-latest 
     defaults:
       run:
         working-directory: android
