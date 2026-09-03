@@ -147,7 +147,7 @@ class StakeViewModel @Inject constructor(
         onOpenDetail: (String, String) -> Unit,
         onConfirm: ConfirmTransactionAction,
     ) {
-        if (walletType.value?.isViewOnly == true || delegation.base.state != DelegationState.AwaitingWithdrawal) {
+        if (delegation.base.state != DelegationState.AwaitingWithdrawal) {
             onOpenDetail(delegation.validator.id, delegation.base.delegationId)
             return
         }
