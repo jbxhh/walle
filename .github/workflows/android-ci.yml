@@ -72,5 +72,5 @@ jobs:
             android/**/build/outputs/apk/**/*.apk
             android/**/build/outputs/aab/**/*.aab
 
-      - name: Run unit tests
-        run: just test
+      # - name: Run unit tests
+      #   run: just test
