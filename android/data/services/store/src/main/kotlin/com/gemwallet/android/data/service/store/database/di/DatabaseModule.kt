@@ -11,6 +11,8 @@ import com.gemwallet.android.data.service.store.database.BalancesDao
 import com.gemwallet.android.data.service.store.database.BannersDao
 import com.gemwallet.android.data.service.store.database.ConnectionsDao
 import com.gemwallet.android.data.service.store.database.ContactsDao
+import com.gemwallet.android.data.service.store.database.FakeBalancesDao
+import com.gemwallet.android.data.service.store.database.FakeTransactionsDao
 import com.gemwallet.android.data.service.store.database.FiatTransactionsDao
 import com.gemwallet.android.data.service.store.database.GemDatabase
 import com.gemwallet.android.data.service.store.database.InAppNotificationsDao
@@ -94,6 +96,7 @@ object DatabaseModule {
         .addMigrations(Migration_87_88)
         .addMigrations(Migration_88_89)
         .addMigrations(Migration_89_90)
+        .addMigrations(Migration_90_91)
         .build()
 
     @Singleton
@@ -187,4 +190,12 @@ object DatabaseModule {
     @Singleton
     @Provides
     fun provideSupportMessagesDao(db: GemDatabase): SupportMessagesDao = db.supportMessagesDao()
+
+    @Singleton
+    @Provides
+    fun provideFakeTransactionsDao(db: GemDatabase): FakeTransactionsDao = db.fakeTransactionsDao()
+
+    @Singleton
+    @Provides
+    fun provideFakeBalancesDao(db: GemDatabase): FakeBalancesDao = db.fakeBalancesDao()
 }
