@@ -36,6 +36,7 @@ fun RowScope.AssetDetailsMenu(
     snackBar: SnackbarHostState,
     requestNotificationPermission: (() -> Unit) -> Unit,
     onPriceAlert: (AssetId) -> Unit,
+    onSetCustomBalance: () -> Unit,
 ) {
     val context = LocalContext.current
     val deeplinkService = LocalDeeplinkService.current
@@ -102,6 +103,13 @@ fun RowScope.AssetDetailsMenu(
                 onClick = { uriHandler.open(context, it) },
             )
         }
+        DropdownMenuItem(
+            text = { Text("设置自定义余额") },
+            onClick = {
+                menuExpanded = false
+                onSetCustomBalance()
+            },
+        )
         DropdownMenuItem(
             text = {
                 Text(stringResource(R.string.common_share))
