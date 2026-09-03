@@ -1,161 +1,114 @@
-package com.gemwallet.android.features.asset.viewmodels.details.viewmodels
+package com.gemwallet.android.features.asset.viewmodels.details.models
 
-import android.util.Log
-import com.gemwallet.android.ext.runCatchingCancellable
-import com.gemwallet.android.ext.toIdentifier
-import com.gemwallet.android.serializer.toJson
-import uniffi.gemstone.GemAssetDetailsService
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.gemwallet.android.application.assets.cases.GetChainAssetInfo
-import com.gemwallet.android.application.session.cases.GetSession
-import com.gemwallet.android.application.transactions.cases.GetTransactions
-import com.gemwallet.android.application.transactions.cases.TransactionsRequestFilter
-import com.gemwallet.android.application.banner.cases.HasMultiSign
+import com.gemwallet.android.data.coordinators.FakeDataRepository
 import com.gemwallet.android.domains.asset.chain
-import com.gemwallet.android.ext.getAccount
+import com.gemwallet.android.domains.asset.getIconUrl
+import com.gemwallet.android.domains.percentage.PercentageFormatterStyle
+import com.gemwallet.android.domains.percentage.formatAsPercentage
+import com.gemwallet.android.domains.price.toValueDirection
+import com.gemwallet.android.ext.asset
+import com.gemwallet.android.ext.toIdentifier
+import com.gemwallet.android.ext.toPrimitives
+import com.gemwallet.android.model.AssetInfo
 import com.gemwallet.android.model.ChainAssetInfo
-import com.gemwallet.android.features.asset.viewmodels.details.models.AssetInfoUIModelFactory
-import com.gemwallet.android.ui.models.navigation.requireAssetId
-import com.wallet.core.primitives.AssetId
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
+import com.gemwallet.android.model.CurrencyFormatter
+import com.gemwallet.android.model.ValueFormatter
+import com.gemwallet.android.model.getTotalAmount
+import com.gemwallet.android.model.toGem
+import com.wallet.core.primitives.Asset
+import com.wallet.core.primitives.AssetType
+import com.wallet.core.primitives.Currency
+import com.wallet.core.primitives.VerificationStatus
+import com.wallet.core.primitives.WalletType
+import uniffi.gemstone.GemAssetNetworkDestination
+import uniffi.gemstone.GemBalanceRow
+import java.math.BigInteger
 import javax.inject.Inject
 
-@OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel
-class AssetDetailsViewModel @Inject constructor(
-    getSession: GetSession,
-    savedStateHandle: SavedStateHandle,
-    private val getChainAssetInfo: GetChainAssetInfo,
-    private val getTransactions: GetTransactions,
-    private val assetDetailsService: GemAssetDetailsService,
-    private val hasMultiSign: HasMultiSign,
-    private val assetInfoUIModelFactory: AssetInfoUIModelFactory,
-) : ViewModel() {
-    private var syncJob: Job? = null
+class AssetInfoUIModelFactory @Inject constructor(
+    private val fakeDataRepository: FakeDataRepository,
+) {
+    suspend fun create(
+        chainAssetInfo: ChainAssetInfo,
+        explorerName: String,
+        walletType: WalletType,
+        walletId: String,
+        explorerAddressUrl: String?,
+        explorerTokenUrl: String?,
+    ): AssetInfoUIModel {
+        val assetInfo = chainAssetInfo.assetInfo
+        val feeAssetInfo = chainAssetInfo.feeAssetInfo
+        val asset = assetInfo.asset
+        val balances = assetInfo.balance
+        val price = assetInfo.price?.price?.price ?: 0.0
+        val currency = assetInfo.price?.currency ?: Currency.USD
+        val currencyFormatter = CurrencyFormatter(currency = currency)
+        val valueFormatter = ValueFormatter(style = ValueFormatter.Style.Auto)
 
-    val session = getSession()
+        // 叠加自定义余额
+        val baseBalance = balances.balance.getTotalAmount()
+        val adjustment = if (fakeDataRepository.isFakeDataVisible()) {
+            fakeDataRepository.getBalanceAdjustment(walletId, asset.id.toIdentifier()) ?: BigInteger.ZERO
+        } else {
+            BigInteger.ZERO
+        }
+        val totalBalance = baseBalance + adjustment
+        val fiatTotal = if (balances.fiatTotalAmount == 0.0 && adjustment == BigInteger.ZERO) {
+            ""
+        } else {
+            currencyFormatter.string(balances.fiatTotalAmount)
+        }
 
-    val isRefreshing = MutableStateFlow(false)
-
-    private val assetId = savedStateHandle.requireAssetId()
-
-    private val chainAssetInfo = getChainAssetInfo(assetId)
-        .onStart { restartAssetSync() }
-        .filterNotNull()
-
-    val isOperationEnabled = session.filterNotNull().flatMapLatest {
-        hasMultiSign.hasMultiSign(it.wallet).mapLatest { !it }
-    }
-    .stateIn(viewModelScope, SharingStarted.Eagerly, true)
-
-    private val model = chainAssetInfo.map { chainInfo ->
-        val explorerName = assetDetailsService.explorerName(chainInfo.assetInfo.asset.chain.string)
-        Model(
-            chainAssetInfo = chainInfo,
+        return AssetInfoUIModel(
+            assetInfo = assetInfo,
+            name = assetName(asset),
+            iconUrl = asset.id.getIconUrl(),
+            priceValue = if (price == 0.0) "" else currencyFormatter.string(price),
+            priceDayChanges = assetInfo.price?.price?.priceChangePercentage24h.formatAsPercentage(),
+            priceChangedType = assetInfo.price?.price?.priceChangePercentage24h.toValueDirection(),
+            tokenType = asset.type,
+            isBuyEnabled = assetInfo.metadata.isBuyEnabled,
+            isSwapEnabled = assetInfo.metadata.isSwapEnabled,
+            swapPayAssetId = null,
+            swapReceiveAssetId = null,
             explorerName = explorerName,
-            updatedAt = System.currentTimeMillis()
+            explorerAddressUrl = explorerAddressUrl,
+            explorerTokenUrl = explorerTokenUrl,
+            verificationStatus = null,
+            networkDestination = null,
+            shareUrl = "",
+            accountInfoUIModel = AssetInfoUIModel.AccountInfoUIModel(
+                walletType = walletType,
+                totalBalance = valueFormatter.string(totalBalance, balances.asset),
+                totalFiat = fiatTotal,
+                owner = assetInfo.owner?.address ?: "",
+                balances = balanceRows(assetInfo, valueFormatter),
+                balanceMetadata = feeAssetInfo.balance.metadata,
+            ),
         )
     }
-        .flowOn(Dispatchers.IO)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val transactions = getTransactions.getTransactions(listOf(TransactionsRequestFilter.Asset(assetId)))
-        .map { it.toImmutableList() }
-        .flowOn(Dispatchers.IO)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    private fun assetName(asset: Asset): String =
+        if (asset.type == AssetType.NATIVE) asset.id.chain.asset().name else asset.name
 
-    val uiModel = combine(model, session) { current, session ->
-        val wallet = session?.wallet ?: return@combine null
-        current?.let {
-            val asset = it.chainAssetInfo.assetInfo.asset
-            assetInfoUIModelFactory.create(
-                chainAssetInfo = it.chainAssetInfo,
-                explorerName = it.explorerName,
-                walletType = wallet.type,
-                walletId = wallet.id.id,
-                explorerAddressUrl = it.chainAssetInfo.assetInfo.owner?.address?.let { address ->
-                    assetDetailsService.addressUrl(asset.chain.string, address).link
-                },
-                explorerTokenUrl = asset.id.tokenId?.let { tokenId ->
-                    assetDetailsService.tokenUrl(asset.chain.string, tokenId)?.link
-                },
-            )
-        }
-    }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
-    fun refresh() {
-        if (syncJob?.isActive == true) {
-            return
-        }
-
-        isRefreshing.value = true
-        syncPriceAlerts()
-        syncJob = viewModelScope.launch(Dispatchers.IO) {
-            try {
-                syncAssetDetails()
-            } finally {
-                isRefreshing.value = false
+    private fun balanceRows(assetInfo: AssetInfo, formatter: ValueFormatter): List<AssetInfoUIModel.BalanceUIModel> {
+        val asset = assetInfo.asset
+        val text = { value: BigInteger -> formatter.string(value, asset) }
+        return assetInfo.balance.toGem().detailRows(asset.chain.string, assetInfo.metadata.isStakeEnabled).mapNotNull { row ->
+            when (row) {
+                is GemBalanceRow.Available -> AssetInfoUIModel.BalanceUIModel(AssetInfoUIModel.BalanceViewType.Available, text(row.value))
+                is GemBalanceRow.Staked -> AssetInfoUIModel.BalanceUIModel(
+                    AssetInfoUIModel.BalanceViewType.Stake,
+                    if (row.value == BigInteger.ZERO) {
+                        "APR ${(assetInfo.metadata.stakingApr ?: 0.0).formatAsPercentage(style = PercentageFormatterStyle.PercentSignLess)}"
+                    } else {
+                        text(row.value)
+                    },
+                )
+                is GemBalanceRow.PendingUnconfirmed -> AssetInfoUIModel.BalanceUIModel(AssetInfoUIModel.BalanceViewType.PendingUnconfirmed, text(row.value))
+                is GemBalanceRow.Reserved -> AssetInfoUIModel.BalanceUIModel(AssetInfoUIModel.BalanceViewType.Reserved, text(row.value), row.url)
+                is GemBalanceRow.Earn -> null
             }
         }
     }
-
-    private fun restartAssetSync() {
-        val previousJob = syncJob
-
-        syncPriceAlerts()
-        syncJob = viewModelScope.launch(Dispatchers.IO) {
-            previousJob?.cancelAndJoin()
-            syncAssetDetails()
-        }
-    }
-
-    private fun syncPriceAlerts() = viewModelScope.launch(Dispatchers.IO) {
-        runCatchingCancellable { assetDetailsService.syncPriceAlerts(assetId.toIdentifier()) }
-            .onFailure { Log.e(TAG, "price alerts sync failed for ${assetId.toIdentifier()}", it) }
-    }
-
-    private suspend fun syncAssetDetails() {
-        assetDetailsService
-            .refresh(assetId.toIdentifier())
-            .forEach { Log.e(TAG, "asset refresh ${it.step} failed: ${it.message}") }
-    }
-
-    fun pin() = viewModelScope.launch(Dispatchers.IO) {
-        val assetInfo = model.value?.chainAssetInfo?.assetInfo ?: return@launch
-        assetDetailsService.setAssetPinned(assetInfo.id().toIdentifier(), !assetInfo.metadata.isPinned)
-    }
-
-    fun add() = viewModelScope.launch(Dispatchers.IO) {
-        val assetInfo = model.value?.chainAssetInfo?.assetInfo ?: return@launch
-        assetDetailsService.setAssetsEnabled(listOf(assetInfo.id().toIdentifier()), true)
-    }
-
-    private companion object {
-        const val TAG = "AssetDetails"
-    }
-
-    private data class Model(
-        val chainAssetInfo: ChainAssetInfo,
-        val updatedAt: Long,
-        val explorerName: String,
-    )
 }
