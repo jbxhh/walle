@@ -62,8 +62,7 @@ internal fun AssetDetailsScene(
         uiState.asset.name,
     )
     val addToastMessage = stringResource(R.string.asset_added_to_wallet)
-    val swapAction: (() -> Unit)? = if (uiState.isSwapEnabled) {
-        {
+    val swapAction: (() -> Unit)? ={
             onAction(
                 AssetDetailsAction.Swap(
                     fromAssetId = uiState.swapPayAssetId ?: uiState.asset.id,
@@ -71,9 +70,6 @@ internal fun AssetDetailsScene(
                 )
             )
         }
-    } else {
-        null
-    }
 
     Scene(
         titleContent = {
