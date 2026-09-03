@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:432718650124:android:1234567890abcdef",
+        "android_client_info": {
+          "package_name": "com.gemwallet.android.mod"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUMMYKEYDUMMYKEYDUMMYKEYDUMMYKEY123"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:432718650124:android:eef95df06197fe57368729",
         "android_client_info": {
           "package_name": "com.gemwallet.android"
