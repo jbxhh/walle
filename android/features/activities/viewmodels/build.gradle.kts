@@ -48,7 +48,7 @@ android {
 }
 
 dependencies {
-    api(project(":data:services:store"))
+    api(project(":ui-models"))
     api(project(":data:coordinators"))
     implementation(project(":data:services:gemstone"))
 
