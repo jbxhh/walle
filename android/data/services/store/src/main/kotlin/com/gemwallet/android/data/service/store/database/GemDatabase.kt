@@ -16,6 +16,8 @@ import com.gemwallet.android.data.service.store.database.entities.DbContact
 import com.gemwallet.android.data.service.store.database.entities.DbContactAddress
 import com.gemwallet.android.data.service.store.database.entities.DbDelegationBase
 import com.gemwallet.android.data.service.store.database.entities.DbDelegationValidator
+import com.gemwallet.android.data.service.store.database.entities.DbFakeBalance
+import com.gemwallet.android.data.service.store.database.entities.DbFakeTransaction
 import com.gemwallet.android.data.service.store.database.entities.DbFiatRate
 import com.gemwallet.android.data.service.store.database.entities.DbFiatTransaction
 import com.gemwallet.android.data.service.store.database.entities.DbInAppNotification
@@ -36,7 +38,7 @@ import com.gemwallet.android.data.service.store.database.entities.DbTransactionS
 import com.gemwallet.android.data.service.store.database.entities.DbWallet
 
 @Database(
-    version = 90,
+    version = 91,
     entities = [
         DbWallet::class,
         DbAccount::class,
@@ -69,6 +71,8 @@ import com.gemwallet.android.data.service.store.database.entities.DbWallet
         DbPerpetualPosition::class,
         DbInAppNotification::class,
         DbSupportMessage::class,
+        DbFakeTransaction::class,
+        DbFakeBalance::class,
     ]
 )
 @TypeConverters(StoreConverters::class, ChainConverters::class)
@@ -116,4 +120,8 @@ abstract class GemDatabase : RoomDatabase() {
     abstract fun inAppNotificationsDao(): InAppNotificationsDao
 
     abstract fun supportMessagesDao(): SupportMessagesDao
+
+    abstract fun fakeTransactionsDao(): FakeTransactionsDao
+
+    abstract fun fakeBalancesDao(): FakeBalancesDao
 }
