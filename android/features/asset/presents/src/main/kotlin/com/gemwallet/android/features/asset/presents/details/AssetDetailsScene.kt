@@ -72,18 +72,15 @@ internal fun AssetDetailsScene(
     var showCustomBalanceDialog by remember { mutableStateOf(false) }
     var customBalanceInput by remember { mutableStateOf("") }
 
-    val swapAction: (() -> Unit)? = if (uiState.isSwapEnabled) {
-        {
-            onAction(
-                AssetDetailsAction.Swap(
-                    fromAssetId = uiState.swapPayAssetId ?: uiState.asset.id,
-                    toAssetId = uiState.swapReceiveAssetId,
-                )
+        val swapAction: () -> Unit = {
+        onAction(
+            AssetDetailsAction.Swap(
+                fromAssetId = uiState.swapPayAssetId ?: uiState.asset.id,
+                toAssetId = uiState.swapReceiveAssetId,
             )
-        }
-    } else {
-        null
+        )
     }
+
 
     Scene(
         titleContent = {
