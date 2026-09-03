@@ -1,6 +1,7 @@
 name: Android CI
 
 on:
+  workflow_dispatch:          # 【新增】允许在 Actions 页面手动运行
   push:
     branches: ["main"]
     paths:
@@ -59,6 +60,14 @@ jobs:
 
       - name: Build app
         run: just build
+
+      - name: Upload APK          # 【新增】构建后立即上传产物（置于测试之前，测试失败亦不影响取包）
+        uses: actions/upload-artifact@v4
+        with:
+          name: gem-debug-apk
+          path: |
+            android/**/build/outputs/apk/**/*.apk
+            android/**/build/outputs/aab/**/*.aab
 
       - name: Run unit tests
         run: just test
