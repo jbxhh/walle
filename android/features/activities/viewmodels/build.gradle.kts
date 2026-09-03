@@ -48,8 +48,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":data:coordinators"))
-    api(project(":ui-models"))
+    api(project(":data:coordinators"))
     implementation(project(":data:services:gemstone"))
 
     implementation(libs.ktx.core)
