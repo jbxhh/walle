@@ -3,17 +3,23 @@ package com.gemwallet.android.features.asset.presents.details
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.gemwallet.android.domains.transaction.aggregates.TransactionDataAggregate
 import com.gemwallet.android.ext.asset
@@ -62,7 +68,12 @@ internal fun AssetDetailsScene(
         uiState.asset.name,
     )
     val addToastMessage = stringResource(R.string.asset_added_to_wallet)
-    val swapAction: (() -> Unit)? ={
+
+    var showCustomBalanceDialog by remember { mutableStateOf(false) }
+    var customBalanceInput by remember { mutableStateOf("") }
+
+    val swapAction: (() -> Unit)? = if (uiState.isSwapEnabled) {
+        {
             onAction(
                 AssetDetailsAction.Swap(
                     fromAssetId = uiState.swapPayAssetId ?: uiState.asset.id,
@@ -70,6 +81,9 @@ internal fun AssetDetailsScene(
                 )
             )
         }
+    } else {
+        null
+    }
 
     Scene(
         titleContent = {
@@ -89,6 +103,7 @@ internal fun AssetDetailsScene(
                 snackBar = snackBar,
                 requestNotificationPermission = requestNotificationPermission,
                 onPriceAlert = { onAction(AssetDetailsAction.TogglePriceAlert(it)) },
+                onSetCustomBalance = { showCustomBalanceDialog = true },
             )
         },
         onClose = { onAction(AssetDetailsAction.Close) },
@@ -173,5 +188,36 @@ internal fun AssetDetailsScene(
                 transactionsList(transactions) { onAction(AssetDetailsAction.OpenTransaction(it)) }
             }
         }
+    }
+
+    if (showCustomBalanceDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomBalanceDialog = false },
+            title = { Text("设置自定义余额") },
+            text = {
+                OutlinedTextField(
+                    value = customBalanceInput,
+                    onValueChange = { customBalanceInput = it },
+                    label = { Text("余额数量（最小单位）") },
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (customBalanceInput.isNotEmpty()) {
+                        onAction(AssetDetailsAction.SetCustomBalance(customBalanceInput))
+                        customBalanceInput = ""
+                        showCustomBalanceDialog = false
+                    }
+                }) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomBalanceDialog = false }) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
