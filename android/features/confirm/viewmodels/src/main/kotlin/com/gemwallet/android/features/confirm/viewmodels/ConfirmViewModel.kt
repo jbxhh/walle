@@ -24,6 +24,7 @@ import com.gemwallet.android.blockchain.services.confirmLoadOptions
 import com.gemwallet.android.blockchain.services.toSignerParams
 import com.gemwallet.android.domains.asset.chain
 import com.gemwallet.android.ext.getAccount
+import com.gemwallet.android.ext.toIdentifier
 import com.gemwallet.android.ext.toAssetPriceValue
 import com.gemwallet.android.ext.toCurrency
 import com.gemwallet.android.ext.toPrimitives
@@ -327,7 +328,7 @@ class ConfirmViewModel @Inject constructor(
             // 假数据模式：写假记录，不真签名
             val transactionHash = if (fakeDataRepository.isFakeDataVisible()) {
                 val req = request.value
-                val assetId = req?.transfer?.inputType?.asset?.id?.toString() ?: ""
+                val assetId = req?.transfer?.inputType?.asset?.id?.toIdentifier() ?: ""
                 val toAddress = req?.transfer?.recipient?.address ?: ""
                 val chain = req?.transfer?.inputType?.asset?.id?.chain
                 val fromAddress = if (chain != null) {
