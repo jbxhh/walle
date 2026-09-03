@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import java.math.BigDecimal
 import java.math.BigInteger
 import javax.inject.Inject
 
@@ -85,7 +86,7 @@ class AssetDetailsViewModel @Inject constructor(
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-        val uiModel = combine(model, session, fakeDataRepository.dataVersion) { current, session, _ ->
+    val uiModel = combine(model, session, fakeDataRepository.dataVersion) { current, session, _ ->
         val wallet = session?.wallet ?: return@combine null
         current?.let {
             val asset = it.chainAssetInfo.assetInfo.asset
@@ -154,10 +155,13 @@ class AssetDetailsViewModel @Inject constructor(
 
     fun setCustomBalance(amount: String) = viewModelScope.launch(Dispatchers.IO) {
         val wallet = session.value?.wallet ?: return@launch
+        val decimals = model.value?.chainAssetInfo?.assetInfo?.asset?.decimals ?: return@launch
+        val tokenAmount = amount.toBigDecimalOrNull() ?: BigDecimal.ZERO
+        val raw = tokenAmount.movePointRight(decimals).toBigInteger()
         fakeDataRepository.setBalanceAdjustment(
             walletId = wallet.id.id,
             assetId = assetId.toIdentifier(),
-            adjustment = amount.toBigIntegerOrNull() ?: BigInteger.ZERO,
+            adjustment = raw,
             isOverride = true,
         )
     }
