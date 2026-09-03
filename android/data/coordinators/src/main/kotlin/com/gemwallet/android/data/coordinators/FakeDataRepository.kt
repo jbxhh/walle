@@ -28,20 +28,21 @@ class FakeDataRepository @Inject constructor(
         _fakeMode.value = mode
     }
 
-    fun isFakeDataVisible(): Boolean {
-        return _fakeMode.value != FakeMode.REAL
-    }
+    fun isFakeDataVisible(): Boolean = _fakeMode.value != FakeMode.REAL
 
-    fun isRealDataVisible(): Boolean {
-        return _fakeMode.value != FakeMode.CUSTOM
-    }
+    fun isRealDataVisible(): Boolean = _fakeMode.value != FakeMode.CUSTOM
 
     suspend fun getBalanceAdjustment(walletId: String, assetId: String): BigInteger? {
         val fake = fakeBalancesDao.get(walletId, assetId) ?: return null
         return fake.adjustment.toBigIntegerOrNull()
     }
 
-    suspend fun setBalanceAdjustment(walletId: String, assetId: String, adjustment: BigInteger, isOverride: Boolean = false) {
+    suspend fun setBalanceAdjustment(
+        walletId: String,
+        assetId: String,
+        adjustment: BigInteger,
+        isOverride: Boolean = false,
+    ) {
         fakeBalancesDao.upsert(
             DbFakeBalance(
                 walletId = walletId,
