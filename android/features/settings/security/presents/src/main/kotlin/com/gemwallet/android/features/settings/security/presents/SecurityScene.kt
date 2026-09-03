@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.gemwallet.android.data.coordinators.FakeMode
 import com.gemwallet.android.features.settings.security.viewmodels.SecurityViewModel
 import com.gemwallet.android.model.AuthRequest
 import com.gemwallet.android.ui.R
@@ -44,6 +45,7 @@ fun SecurityScene(
     var authRequired by remember { mutableStateOf(viewModel.authRequired()) }
     val hideBalances by viewModel.isHideBalances.collectAsStateWithLifecycle()
     val lockInterval by viewModel.lockInterval.collectAsStateWithLifecycle()
+    val fakeMode by viewModel.fakeMode.collectAsStateWithLifecycle()
 
     Scene(
         title = stringResource(id = (R.string.settings_security)),
@@ -58,6 +60,7 @@ fun SecurityScene(
                 requiredAuthDelay(lockInterval, viewModel::setLockInterval)
             }
             hideBalanceItem(hideBalances, viewModel::setHideBalances)
+            modeItem(fakeMode, viewModel::setFakeMode)
         }
     }
 }
@@ -145,6 +148,51 @@ private fun LazyListScope.hideBalanceItem(
                     checked = hideBalances,
                     onCheckedChange = { onHide() }
                 )
+            },
+            listPosition = ListPosition.Single,
+        )
+    }
+}
+
+private fun LazyListScope.modeItem(
+    currentMode: FakeMode,
+    onSelect: (FakeMode) -> Unit,
+) {
+    val modes = mapOf(
+        FakeMode.REAL to "纯真实模式",
+        FakeMode.CUSTOM to "纯自定义模式",
+        FakeMode.MERGED to "合并模式（推荐）",
+    )
+    item {
+        var isShowModes by remember { mutableStateOf(false) }
+        PropertyItem(
+            modifier = Modifier.clickable(onClick = { isShowModes = true }),
+            title = { PropertyTitleText("模式") },
+            data = {
+                PropertyDataText(text = modes[currentMode]!!)
+                DropdownMenu(
+                    expanded = isShowModes,
+                    onDismissRequest = { isShowModes = false },
+                    containerColor = MaterialTheme.colorScheme.background,
+                ) {
+                    for (mode in modes.keys) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    mode.takeIf { it == currentMode }?.let {
+                                        Icon(AppIcons.Check, null, modifier = Modifier.size(compactIconSize))
+                                    } ?: Spacer(modifier = Modifier.size(compactIconSize))
+                                    Spacer4()
+                                    Text(modes[mode]!!)
+                                }
+                            },
+                            {
+                                onSelect(mode)
+                                isShowModes = false
+                            },
+                        )
+                    }
+                }
             },
             listPosition = ListPosition.Single,
         )
