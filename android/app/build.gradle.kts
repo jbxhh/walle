@@ -55,7 +55,7 @@ android {
     flavorDimensions.add(channelDimension)
 
     defaultConfig {
-        applicationId = "com.gemwallet.android"
+        applicationId = "com.gemwallet.android.mod"
         minSdk = 28
         targetSdk = 37
         versionCode = 824
