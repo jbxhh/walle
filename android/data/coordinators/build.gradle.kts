@@ -46,7 +46,7 @@ android {
 dependencies {
     implementation(project(":data:services:gemstone"))
     implementation(project(":gemcore"))
-    implementation(project(":data:services:store"))
+    api(project(":data:services:store"))
     api(project(":data:services:native-provider"))
 
     compileOnly(libs.compose.runtime.annotation)
