@@ -24,7 +24,7 @@ internal fun AssetHeadItem(
     ) {
         AssetHeadActions(
             walletType = uiState.accountInfoUIModel.walletType,
-            transferEnabled = uiState.accountInfoUIModel.walletType != WalletType.View,
+            transferEnabled = true,
             operationsEnabled = isOperationEnabled,
             onTransfer = { onTransfer(uiState.asset.id) },
             onReceive = { onReceive(uiState.asset.id) },
