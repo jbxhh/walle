@@ -141,7 +141,7 @@ internal fun AssetDetailsScene(
                     },
                 )
                 status(uiState.asset, uiState.assetInfo.metadata.rankScore)
-                price(uiState, priceAlertsCount, onChart = { onAction(AssetDetailsAction.OpenChart(it)) }, onPriceAlerts = { onAction(AssetDetailsAction.OpenPriceAlerts) })
+                price(uiState, priceAlertsCount, onChart = { onAction(AssetDetailsAction.OpenChart(it)) }, onPriceAlerts = { onAction(AssetDetailsAction.OpenPriceAlerts(it)) })
                 network(uiState, onAction)
                 balancesHeader(uiState.accountInfoUIModel)
                 itemsPositioned(uiState.accountInfoUIModel.balances) { position, item ->
