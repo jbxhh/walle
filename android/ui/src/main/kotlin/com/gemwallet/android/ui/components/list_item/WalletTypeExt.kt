@@ -6,13 +6,12 @@ import com.wallet.core.primitives.WalletType
 
 @get:StringRes
 val WalletType.descriptionRes: Int get() = when (this) {
-    WalletType.Multicoin, WalletType.Single -> R.string.common_secret_phrase
+    // 将 View 也归入 secret_phrase，这样列表里所有钱包都显示“助记词”，彻底伪装
+    WalletType.Multicoin, WalletType.Single, WalletType.View -> R.string.common_secret_phrase
     WalletType.PrivateKey -> R.string.common_private_key
-    // 保持为“地址”。若想彻底伪装成真实钱包的“助记词”，可将此处改为 R.string.common_secret_phrase
-    WalletType.View -> R.string.common_address 
 }
 
 fun WalletType.supportIcon(): String? = when (this) {
-    // 删除了 View 的 watch_badge 分支，使其统一返回 null，彻底移除“观察”小图标
+    // 彻底移除“观察”小图标
     else -> null
 }
