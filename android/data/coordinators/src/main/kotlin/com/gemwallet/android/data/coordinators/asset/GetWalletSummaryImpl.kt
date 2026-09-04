@@ -1,10 +1,10 @@
 package com.gemwallet.android.data.coordinators.asset
-
 import androidx.compose.runtime.Stable
 import com.gemwallet.android.application.assets.cases.GetWalletSummary
 import com.gemwallet.android.application.banner.cases.HasMultiSign
 import com.gemwallet.android.application.perpetual.cases.GetPerpetualBalance
 import com.gemwallet.android.application.assets.cases.GetWalletAssets
+import com.gemwallet.android.data.coordinators.FakeDataRepository
 import com.gemwallet.android.data.services.gemstone.config.UserConfig
 import com.gemwallet.android.application.session.cases.GetSession
 import com.gemwallet.android.domains.asset.getIconUrl
@@ -14,6 +14,7 @@ import com.gemwallet.android.domains.price.values.EquivalentValue
 import com.gemwallet.android.domains.wallet.aggregates.WalletIcon
 import com.gemwallet.android.domains.wallet.aggregates.WalletSummaryAggregate
 import com.gemwallet.android.ext.isSwapSupport
+import com.gemwallet.android.ext.toIdentifier
 import com.gemwallet.android.model.CurrencyFormatter
 import com.wallet.core.primitives.Wallet
 import com.wallet.core.primitives.Currency
@@ -31,7 +32,6 @@ import java.math.BigDecimal
 import uniffi.gemstone.AssetFiatValue as GemAssetFiatValue
 import uniffi.gemstone.BalanceCalculator
 import uniffi.gemstone.TotalFiatValue as GemTotalFiatValue
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class GetWalletSummaryImpl(
     private val getSession: GetSession,
@@ -40,21 +40,27 @@ class GetWalletSummaryImpl(
     private val hasMultiSign: HasMultiSign,
     private val userConfig: UserConfig,
     private val balanceCalculator: BalanceCalculator,
+    private val fakeDataRepository: FakeDataRepository,
     scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
 ) : GetWalletSummary {
-
     private val walletSummary = getSession().flatMapLatest { session ->
         val wallet = session?.wallet ?: return@flatMapLatest flowOf(null)
-
         combine(
             getWalletAssets(),
             getPerpetualBalance.getCollateralIncludedInTotal(),
             hasMultiSign.hasMultiSign(wallet),
             userConfig.isHideBalances(),
-        ) { assets, perpetualBalance, hasMultiSign, hideBalances ->
+            combine(fakeDataRepository.fakeMode, fakeDataRepository.dataVersion) { m, _ -> m },
+        ) { assets, perpetualBalance, hasMultiSign, hideBalances, _ ->
             val balances = assets.map { asset ->
+                val realAmount = asset.balance.totalAmount
+                val amount = if (fakeDataRepository.isFakeDataVisible()) {
+                    fakeDataRepository.getBalanceAdjustment(wallet.id.id, asset.asset.id.toIdentifier()) ?: realAmount
+                } else {
+                    realAmount
+                }
                 GemAssetFiatValue(
-                    amount = asset.balance.totalAmount,
+                    amount = amount,
                     price = asset.price?.price?.price ?: 0.0,
                     priceChangePercentage24h = asset.price?.price?.priceChangePercentage24h ?: 0.0,
                 )
@@ -63,7 +69,6 @@ class GetWalletSummaryImpl(
                     GemAssetFiatValue(amount = it.available + it.reserved, price = 1.0, priceChangePercentage24h = 0.0)
                 }
             )
-
             WalletSummaryAggregateImpl(
                 wallet = wallet,
                 displayState = buildWalletSummaryDisplayState(
@@ -76,12 +81,10 @@ class GetWalletSummaryImpl(
             )
         }
     }.stateIn(scope, SharingStarted.Eagerly, null)
-
     override fun getWalletSummary(): Flow<WalletSummaryAggregate?> {
         return walletSummary
     }
 }
-
 internal fun buildWalletSummaryDisplayState(
     currency: Currency,
     total: GemTotalFiatValue,
@@ -104,7 +107,6 @@ internal fun buildWalletSummaryDisplayState(
         ),
     )
 }
-
 internal class WalletSummaryEquivalentValue(
     override val currency: Currency,
     override val value: Double?,
@@ -116,16 +118,13 @@ internal class WalletSummaryEquivalentValue(
             val formatted = CurrencyFormatter(type = CurrencyFormatter.Type.Fiat, currency = currency).string(amount)
             return if (amount > 0) "+$formatted" else formatted
         }
-
     override val changePercentageFormatted: String
         get() = changePercentage.formatAsPercentage(style = PercentageFormatterStyle.PercentSignLess)
 }
-
 internal data class WalletSummaryDisplayState(
     val totalValue: String,
     val changedValue: EquivalentValue?,
 )
-
 @Stable
 internal class WalletSummaryAggregateImpl(
     wallet: Wallet,
@@ -134,11 +133,8 @@ internal class WalletSummaryAggregateImpl(
     override val isOperationsAvailable: Boolean,
 ) : WalletSummaryAggregate {
     private val walletAccount = wallet.accounts.firstOrNull()
-
     override val walletType: WalletType = wallet.type
-
     override val walletName: String = wallet.name
-
     override val walletIcon: WalletIcon = WalletIcon(
         imageUrl = wallet.imageUrl,
         placeholder = when (wallet.type) {
@@ -148,11 +144,8 @@ internal class WalletSummaryAggregateImpl(
             WalletType.View -> walletAccount?.chain?.getIconUrl()
         },
     )
-
     override val walletTotalValue: String = displayState.totalValue
-
     override val changedValue: EquivalentValue? = displayState.changedValue
-
     override val isSwapAvailable: Boolean = when (wallet.type) {
         WalletType.Multicoin -> true
         WalletType.Single,
