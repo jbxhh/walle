@@ -59,10 +59,10 @@ class GetWalletSummaryImpl(
                 } else {
                     realAmount
                 }
-                GemAssetFiatValue(
+                                GemAssetFiatValue(
                     amount = amount,
-                    price = asset.price?.price?.price ?: 0.0,
-                    priceChangePercentage24h = asset.price?.price?.priceChangePercentage24h ?: 0.0,
+                    price = asset.price?.price?.price?.toDouble() ?: 0.0,
+                    priceChangePercentage24h = asset.price?.price?.priceChangePercentage24h?.toDouble() ?: 0.0,
                 )
             } + listOfNotNull(
                 perpetualBalance?.let {
