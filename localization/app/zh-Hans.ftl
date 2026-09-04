@@ -265,7 +265,7 @@ errors_balances_activity_outdated = 余额和活动可能不是最新的。
 
 # Activity
 
-activity_title = 活动
+activity_title = 交易记录
 activity_state_empty_title = 交易将在此显示
 activity_state_empty_description = 发起第一笔交易
 activity_state_empty_search_description = 清空筛选条件后将重新加载交易
