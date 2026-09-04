@@ -218,7 +218,7 @@
   <string name="errors_scan_transaction_memo_required">%1$s目标钱包地址需要目标标签/备注</string>
   <string name="errors_wallets_limit_title">钱包已达上限</string>
   <string name="errors_wallets_limit_description">您已达到允许的最大钱包数量（ %1$d ）。请移除现有钱包以添加或创建新钱包。</string>
-  <string name="errors_scan_transaction_malicious_title">可疑活动</string>
+  <string name="errors_scan_transaction_malicious_title">可疑交易</string>
   <string name="errors_connections_malicious_origin">此连接来自不可信来源。</string>
   <string name="errors_no_data_available">暂无数据</string>
   <string name="errors_dust_threshold_short">网络将这笔金额视为微不足道的垃圾——手续费甚至高于金额本身。</string>
@@ -465,7 +465,7 @@
   <string name="info_perpetual_liquidation_price_title">强平价格</string>
   <string name="info_perpetual_liquidation_price_description">强平价格是当市场价格达到该水平时，您的仓位将被自动平仓以防止进一步亏损的价格。当市场价触及此价位，仓位被强制平仓，保证金将被扣除。</string>
   <string name="info_perpetual_open_interest_title">未平仓合约</string>
-  <string name="info_perpetual_open_interest_description">未平仓合约代表所有尚未结算的永续合约的总价值，反映市场活动和流动性。</string>
+  <string name="info_perpetual_open_interest_description">未平仓合约代表所有尚未结算的永续合约的总价值，反映市场交易和流动性。</string>
   <string name="info_no_quote_description">无法返回所选代币对的报价，可能是由于数量少、缺乏流动性或技术限制。</string>
   <string name="info_stake_reserved_title">预留网络费</string>
   <string name="info_stake_reserved_description">您的钱包中会留有少量资金，用于支付取消质押或领取奖励等操作的费用。</string>
