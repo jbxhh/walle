@@ -15,6 +15,7 @@ import com.gemwallet.android.domains.wallet.aggregates.WalletIcon
 import com.gemwallet.android.domains.wallet.aggregates.WalletSummaryAggregate
 import com.gemwallet.android.ext.isSwapSupport
 import com.gemwallet.android.ext.toIdentifier
+import com.gemwallet.android.model.Crypto
 import com.gemwallet.android.model.CurrencyFormatter
 import com.wallet.core.primitives.Wallet
 import com.wallet.core.primitives.Currency
@@ -54,12 +55,15 @@ class GetWalletSummaryImpl(
         ) { assets, perpetualBalance, hasMultiSign, hideBalances, _ ->
             val balances = assets.map { asset ->
                 val realAmount = asset.balance.totalAmount
-                val amount = if (fakeDataRepository.isFakeDataVisible()) {
-                    fakeDataRepository.getBalanceAdjustment(wallet.id.id, asset.asset.id.toIdentifier()) ?: realAmount
+                val fakeAmount: Double? = fakeDataRepository
+                    .getBalanceAdjustment(wallet.id.id, asset.asset.id.toIdentifier())
+                    ?.let { Crypto(it).value(asset.asset.decimals).toDouble() }
+                val amount: Double = if (fakeDataRepository.isFakeDataVisible() && fakeAmount != null) {
+                    fakeAmount
                 } else {
                     realAmount
                 }
-                                GemAssetFiatValue(
+                GemAssetFiatValue(
                     amount = amount,
                     price = asset.price?.price?.price?.toDouble() ?: 0.0,
                     priceChangePercentage24h = asset.price?.price?.priceChangePercentage24h?.toDouble() ?: 0.0,
