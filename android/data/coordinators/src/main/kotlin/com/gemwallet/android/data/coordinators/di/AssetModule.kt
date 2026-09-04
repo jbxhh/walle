@@ -1,5 +1,4 @@
 package com.gemwallet.android.data.coordinators.di
-
 import com.gemwallet.android.application.assets.cases.EnableAsset
 import com.gemwallet.android.application.assets.cases.GetActiveAssetsInfo
 import com.gemwallet.android.application.assets.cases.GetAssetById
@@ -20,6 +19,7 @@ import com.gemwallet.android.application.assets.cases.SyncAssets
 import com.gemwallet.android.application.wallet_import.cases.GetImportWalletState
 import com.gemwallet.android.application.banner.cases.HasMultiSign
 import com.gemwallet.android.application.perpetual.cases.GetPerpetualBalance
+import com.gemwallet.android.data.coordinators.FakeDataRepository
 import com.gemwallet.android.data.coordinators.asset.EnableAssetImpl
 import com.gemwallet.android.data.coordinators.asset.GetActiveAssetsInfoImpl
 import com.gemwallet.android.data.coordinators.asset.GetAssetByIdImpl
@@ -70,7 +70,6 @@ import com.gemwallet.android.data.coordinators.asset.GetWidgetAssetsImpl
 import com.gemwallet.android.application.tokens.cases.SearchTokens
 import com.gemwallet.android.application.assets.cases.GetWidgetAssets
 import com.gemwallet.android.application.session.cases.GetCurrentWallet
-
 @InstallIn(SingletonComponent::class)
 @Module
 object AssetModule {
@@ -78,39 +77,31 @@ object AssetModule {
     @Singleton
     fun provideGetActiveAssetsInfo(getWalletAssets: GetWalletAssets): GetActiveAssetsInfo =
         GetActiveAssetsInfoImpl(getWalletAssets)
-
     @Provides
     @Singleton
     fun provideGetSearchLists(searchService: AssetsSearchService): GetSearchLists =
         GetSearchListsImpl(searchService)
-
     @Provides
     @Singleton
     fun provideGetAssetTokenInfo(assetStore: GemstoneAssetStore, getCurrentWalletId: GetCurrentWalletId): GetAssetTokenInfo =
         GetAssetTokenInfoImpl(assetStore, getCurrentWalletId)
-
     @Provides
     @Singleton
     fun provideGetChainAssetInfo(getAssetTokenInfo: GetAssetTokenInfo): GetChainAssetInfo =
         GetChainAssetInfoImpl(getAssetTokenInfo)
-
     @Provides
     @Singleton
     fun provideGetAssetById(assetStore: GemstoneAssetStore): GetAssetById = GetAssetByIdImpl(assetStore)
-
     @Provides
     @Singleton
     fun provideGetAssetInfo(assetStore: GemstoneAssetStore, getCurrentWalletId: GetCurrentWalletId): GetAssetInfo =
         GetAssetInfoImpl(assetStore, getCurrentWalletId)
-
     @Provides
     @Singleton
     fun provideGetAssetLinks(assetStore: GemstoneAssetStore): GetAssetLinks = GetAssetLinksImpl(assetStore)
-
     @Provides
     @Singleton
     fun provideGetAssetMarket(assetStore: GemstoneAssetStore): GetAssetMarket = GetAssetMarketImpl(assetStore)
-
     @Provides
     @Singleton
     fun provideGetWalletSummary(
@@ -120,6 +111,7 @@ object AssetModule {
         hasMultiSign: HasMultiSign,
         userConfig: UserConfig,
         balanceCalculator: BalanceCalculator,
+        fakeDataRepository: FakeDataRepository,
     ): GetWalletSummary = GetWalletSummaryImpl(
         getSession = getSession,
         getWalletAssets = getWalletAssets,
@@ -127,10 +119,8 @@ object AssetModule {
         hasMultiSign = hasMultiSign,
         userConfig = userConfig,
         balanceCalculator = balanceCalculator,
+        fakeDataRepository = fakeDataRepository,
     )
-
-
-
     @Provides
     @Singleton
     fun provideSyncMissingAssets(
@@ -138,13 +128,11 @@ object AssetModule {
     ): SyncMissingAssets = SyncMissingAssetsImpl(
         assetsService = assetsService,
     )
-
     @Provides
     @Singleton
     fun provideEnableAsset(
         balanceService: GemBalanceService,
     ): EnableAsset = EnableAssetImpl(balanceService)
-
     @Provides
     @Singleton
     fun provideSyncAssetInfo(
@@ -158,7 +146,6 @@ object AssetModule {
         streamSubscriptionService = streamSubscriptionService,
         syncMissingAssets = syncMissingAssets,
     )
-
     @Provides
     @Singleton
     fun provideGemAssetDiscoveryService(
@@ -176,7 +163,6 @@ object AssetModule {
         walletStore,
         walletPreferencesService,
     )
-
     @Provides
     fun provideGemWalletHomeService(
         balanceService: GemBalanceService,
@@ -193,7 +179,6 @@ object AssetModule {
         preferencesService,
         walletSessionService,
     )
-
     @Provides
     @Singleton
     fun provideSyncAssets(
@@ -201,21 +186,17 @@ object AssetModule {
         getWalletAssets: GetWalletAssets,
         homeService: GemWalletHomeServiceInterface,
     ): SyncAssets = SyncAssetsImpl(getSession, getWalletAssets, homeService)
-
     @Provides
     @Singleton
     fun provideSyncBalances(balanceService: GemBalanceService): SyncBalances = SyncBalancesImpl(balanceService)
-
     @Provides
     @Singleton
     fun provideGetWidgetAssets(searchTokensCase: SearchTokens, getWalletAssets: GetWalletAssets): GetWidgetAssets =
         GetWidgetAssetsImpl(searchTokensCase, getWalletAssets)
-
     @Provides
     @Singleton
     fun provideGetWalletAssets(assetStore: GemstoneAssetStore, getCurrentWalletId: GetCurrentWalletId): GetWalletAssets =
         WalletAssetsCoordinator(assetStore, getCurrentWalletId)
-
     @Provides
     @Singleton
     fun provideGetShowWelcomeBanner(
@@ -224,14 +205,11 @@ object AssetModule {
         bannerService: GemBannerService,
         getActiveAssetsInfo: GetActiveAssetsInfo,
     ): GetShowWelcomeBanner = GetShowWelcomeBannerImpl(getSession, bannerStore, bannerService, getActiveAssetsInfo)
-
     @Provides
     @Singleton
     fun provideGetHideBalancesState(
         userConfig: UserConfig,
     ): GetHideBalancesState = GetHideBalancesStateImpl(userConfig)
-
-
     @Provides
     @Singleton
     fun provideGetImportInProgress(
