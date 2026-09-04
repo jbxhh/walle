@@ -14,6 +14,7 @@ import com.gemwallet.android.application.transactions.cases.GetTransactions
 import com.gemwallet.android.application.transactions.cases.TransactionsRequestFilter
 import com.gemwallet.android.application.banner.cases.HasMultiSign
 import com.gemwallet.android.data.coordinators.FakeDataRepository
+import com.gemwallet.android.data.coordinators.transaction.FakeTransactionDataAggregate
 import com.gemwallet.android.domains.asset.chain
 import com.gemwallet.android.ext.getAccount
 import com.gemwallet.android.model.ChainAssetInfo
@@ -80,11 +81,26 @@ class AssetDetailsViewModel @Inject constructor(
     }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
-    val transactions = getTransactions.getTransactions(listOf(TransactionsRequestFilter.Asset(assetId)))
-        .map { it.toImmutableList() }
+    val transactions = combine(
+        getTransactions.getTransactions(listOf(TransactionsRequestFilter.Asset(assetId))),
+        chainAssetInfo,
+        session,
+        fakeDataRepository.fakeMode,
+        fakeDataRepository.dataVersion,
+    ) { real, chainInfo, sess, _, _ ->
+        if (!fakeDataRepository.isFakeDataVisible() || sess == null) {
+            real.toImmutableList()
+        } else {
+            val fakes = fakeDataRepository
+                .getFakeTransactions(sess.wallet.id.id, assetId.toIdentifier())
+                .map { FakeTransactionDataAggregate(it, chainInfo.assetInfo.asset) }
+            (real + fakes).sortedByDescending { it.createdAt }.toImmutableList()
+        }
+    }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    
+        
 
     val uiModel = combine(model, session, fakeDataRepository.dataVersion) { current, session, _ ->
         val wallet = session?.wallet ?: return@combine null
