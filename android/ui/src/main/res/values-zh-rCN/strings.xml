@@ -214,7 +214,7 @@
   <string name="errors_connections_unsupported_method">暂不支持请求的方法。</string>
   <string name="errors_swap_amount_too_small">金额太小，请输入更大的数额试试</string>
   <string name="errors_required">%1$s为必填项</string>
-  <string name="errors_scan_transaction_malicious_description">此交易无法完成——目标钱包地址与可疑或有害活动有关。</string>
+  <string name="errors_scan_transaction_malicious_description">此交易无法完成——目标钱包地址与可疑或有害交易记录有关。</string>
   <string name="errors_scan_transaction_memo_required">%1$s目标钱包地址需要目标标签/备注</string>
   <string name="errors_wallets_limit_title">钱包已达上限</string>
   <string name="errors_wallets_limit_description">您已达到允许的最大钱包数量（ %1$d ）。请移除现有钱包以添加或创建新钱包。</string>
